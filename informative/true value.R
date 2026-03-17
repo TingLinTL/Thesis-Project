@@ -6,7 +6,7 @@ dat <- gen_data_sim(
   k = 1.5, pU = 0.4
 )
 
-n <- 2000000
+n <- 3000000
 tau <- 10
 X1 <- rbinom(n, size = 1, prob = 0.5)
 X2 <- rnorm(n, mean = 0, sd = 1)
@@ -32,8 +32,8 @@ D_a0 <- (-log(runif(n)) / b0)^(1 / 1.5)
 D_a1 <- (-log(runif(n)) / b1)^(1 / 1.5)
 
 # ---- informative censoring: ONE censoring time per subject ----
-bC0 <- exp(-1.2 * (5 + 0.15 * X1 + 0.3 * X2 + 0.6 * U))
-bC1 <- exp(-1.2* (5 + 0.15 * X1 + 0.3 * X2 + 0.6 * U + 0.25))
+bC0 <- exp(-1.2 * (1+ 0.4 * X1 + 0.3 * X2 + 0.6 * U))
+bC1 <- exp(-1.2 * (1+ 0.4 * X1 + 0.3 * X2 + 0.6 * U + 0.3))
 
 C_a0 <- (-log(runif(n)) / bC0)^(1 / 1.2) #A=0
 C_a1 <- (-log(runif(n)) / bC1)^(1 / 1.2) #A=1
@@ -52,7 +52,7 @@ dat <- data.frame(
   Time = Time, d = d,
   A = A, X1 = X1, X2 = X2, U = U
 )
-#mean(dat$D_a1>4)-mean(dat$D_a0>4), 0.3634785
-#censor rate, mean(dat$d == 0)
+#mean(dat$D_a1>4)-mean(dat$D_a0>4), 0.363073
+#censor rate, mean(dat$d == 0) ~53%
 #censoring intercept 5, ~ 13.5%
 #censoring intercept 1.6, ~ 41%
