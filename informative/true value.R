@@ -6,16 +6,17 @@ dat <- gen_data_sim(
   k = 1.5, pU = 0.4
 )
 
-n <- 3000000
+n <- 4000000
 tau <- 10
 X1 <- rbinom(n, size = 1, prob = 0.5)
 X2 <- rnorm(n, mean = 0, sd = 1)
 
 #unmeasured confounder
-U <- rbinom(n, size = 1, prob = 0.4)
+U1 <- rbinom(n, size = 1, prob = 0.4)
+U2 <- rnorm(n, mean = 0, sd = 1)
 
 # ---- Treatment assignment ----
-linpred_A <- -0.4 + 0.2 * X1 + 0.3 * X2 + 0.6 * U
+linpred_A <- -0.4 + 0.2 * X1 + 0.3 * X2 + 0.6 * U1 + 0.6 * U2
 pi_A      <- plogis(linpred_A)
 A         <- rbinom(n, size = 1, prob = pi_A)
 
@@ -23,8 +24,8 @@ A         <- rbinom(n, size = 1, prob = pi_A)
 #generate via inverse CDF
 #T~weibull(k, b), F(t)=1-exp(- b *t^k), where b = exp(-k* lp)
 #T=(-log(U)/b)^(1/k)
-mu1 <- 0.9 + 0.1 * X1 - 0.25 * X2 + 0.6 * U + 0.8 
-mu0 <- 0.9 + 0.1 * X1 - 0.25 * X2 + 0.6 * U
+mu1 <- 0.9 + 0.1 * X1 - 0.25 * X2 + 0.6 * U1 + 0.6 * U2 + 0.8 
+mu0 <- 0.9 + 0.1 * X1 - 0.25 * X2 + 0.6 * U1 + 0.6 * U2
 b1 <- exp(-1.5 * mu1)
 b0 <- exp(-1.5 * mu0)
 
@@ -32,8 +33,8 @@ D_a0 <- (-log(runif(n)) / b0)^(1 / 1.5)
 D_a1 <- (-log(runif(n)) / b1)^(1 / 1.5)
 
 # ---- informative censoring: ONE censoring time per subject ----
-bC0 <- exp(-1.2 * (1+ 0.4 * X1 + 0.3 * X2 + 0.6 * U))
-bC1 <- exp(-1.2 * (1+ 0.4 * X1 + 0.3 * X2 + 0.6 * U + 0.3))
+bC0 <- exp(-1.2 * (1+ 0.4 * X1 + 0.3 * X2 + 0.6 * U1 + 0.6 * U2))
+bC1 <- exp(-1.2 * (1+ 0.4 * X1 + 0.3 * X2 + 0.6 * U1 + 0.6 * U2 + 0.3))
 
 C_a0 <- (-log(runif(n)) / bC0)^(1 / 1.2) #A=0
 C_a1 <- (-log(runif(n)) / bC1)^(1 / 1.2) #A=1
@@ -50,9 +51,29 @@ dat <- data.frame(
   D_a0 = D_a0, D_a1 = D_a1,
   C_a0 = C_a0, C_a1 = C_a1,
   Time = Time, d = d,
-  A = A, X1 = X1, X2 = X2, U = U
+  A = A, X1 = X1, X2 = X2, U1 = U1, U2=U2
 )
 #mean(dat$D_a1>4)-mean(dat$D_a0>4), 0.363073
 #censor rate, mean(dat$d == 0) ~53%
-#censoring intercept 5, ~ 13.5%
-#censoring intercept 1.6, ~ 41%
+
+U_bin <- as.numeric(dat$U > 0)
+
+fit <- glm(A ~ U_bin + X1 + X2, family = binomial(), data=dat)
+coef(fit)
+
+fit_U <- glm(U_bin ~ X1 + X2, family = binomial(), data = dat)
+coef(fit_U)
+
+library(survival)
+
+fit_event <- survreg(Surv(Time, d) ~ A + U_bin + X1 + X2,
+                     dist = "weibull", data = dat)
+
+coef(fit_event)
+
+dat$cens_ind <- 1 - dat$d
+fit_cens <- survreg(Surv(Time, cens_ind) ~ A + U_bin + X1 + X2,
+                    dist = "weibull", data = dat)
+
+coef(fit_cens)
+
